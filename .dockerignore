@@ -1,0 +1,13 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.ml_config.json
+data/*.csv
+models/*.pkl
+models/*.npy
+plots/*.png
+*.egg-info/
+.pytest_cache/

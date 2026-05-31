@@ -1,0 +1,58 @@
+FROM python:3.11-slim
+
+LABEL description="ML Pipeline Template — Claude-free, Docker-native ML automation"
+LABEL usage="docker run --rm -it -v \$(pwd)/output:/output builds-bootstrap"
+
+# ── System dependencies ────────────────────────────────────────────
+# libgomp1  → OpenMP runtime (required by LightGBM on Linux)
+# git       → version control inside the pipeline
+# curl      → GitHub CLI installer
+# rsync     → used by start.sh to stage project files
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    rsync \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── GitHub CLI ─────────────────────────────────────────────────────
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Python dependencies ────────────────────────────────────────────
+# Copy requirements first so this layer is cached when only code changes
+COPY requirements.txt .
+
+# Pre-install everything — including heavy boosters — to system Python.
+# start.sh creates the project venv with --system-site-packages so
+# pip install inside the venv is a fast no-op (packages already present).
+# catboost is ~400 MB; total image size is ~2 GB — acceptable for an
+# ML workstation image that only needs to be pulled once.
+RUN pip install --no-cache-dir \
+    lightgbm \
+    xgboost \
+    catboost \
+    && pip install --no-cache-dir -r requirements.txt
+
+# ── Template files ─────────────────────────────────────────────────
+COPY . .
+
+RUN chmod +x start.sh
+
+# ── Output volume ──────────────────────────────────────────────────
+# Generated projects are written here. Mount your host directory:
+#   docker run --rm -it -v $(pwd)/output:/output builds-bootstrap
+VOLUME ["/output"]
+
+# Tells start.sh to write projects into /output instead of ../
+ENV ML_OUTPUT_DIR=/output
+
+ENTRYPOINT ["bash", "start.sh"]
