@@ -516,6 +516,8 @@ best_result = max(results, key=lambda r: r["cv_score"])
 best_name = best_result["name"]
 best_params = best_result["best_params"]
 best_cv = best_result["cv_score"]
+cfg["best_model"] = best_name
+CONFIG_PATH.write_text(json.dumps(cfg, indent=2))
 
 _print_header("Step 5 — Best Model & Final Evaluation")
 print(f"\n  {_G}{_B}Best model: {best_name}{_X}")
@@ -618,6 +620,7 @@ if task_type == 'regression':
         _p = final_pipe.predict(X_test)
         _metrics_out = {
             'task': 'regression',
+            'algorithm': best_name,
             'r2':   round(float(_r2s(y_test, _p)), 4),
             'mae':  round(float(_mae_fn(y_test, _p)), 2),
             'rmse': round(float(_mse_fn(y_test, _p)**0.5), 2),
@@ -1496,6 +1499,21 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    body.light .err-box { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.25); color: #991b1b; }\n'
         '    body.light #resVal { color: #1e293b !important; }\n'
         '    body.light #resConf { color: #475569 !important; }\n'
+        '    body.light #resLabel { color: #2979ff !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.28)\'] { color:#64748b !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.25)\'] { color:#94a3b8 !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.38)\'] { color:#64748b !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.45)\'] { color:#64748b !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.5);\'] { color:#475569 !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.22)\'] { color:#94a3b8 !important; }\n'
+        '    body.light [style*=\'color:rgba(255,255,255,.3)\'] { color:#94a3b8 !important; }\n'
+        '    body.light [style*=\'background:rgba(255,255,255,.04)\'] { background:rgba(0,0,0,.04) !important; border-color:rgba(0,0,0,.1) !important; }\n'
+        '    body.light [style*=\'background:rgba(255,255,255,.06)\'] { background:rgba(0,0,0,.08) !important; }\n'
+        '    body.light #ciLower, body.light #ciUpper { color:#334155 !important; }\n'
+        '    body.light #batchResult { background:rgba(0,0,0,.03) !important; border-color:rgba(0,0,0,.08) !important; color:#475569 !important; }\n'
+        '    body.light #uploadTxt { color:rgba(0,0,0,.45) !important; }\n'
+        '    body.light .badge span { color:#2979ff !important; }\n'
+        '    body.light .mini-stat div { color:#64748b !important; }\n'
         '    .theme-toggle { position:fixed; top:14px; right:18px; z-index:999; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); color:#fff; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.3); }\n'
         '    body.light .theme-toggle { background:rgba(255,255,255,.9); border-color:rgba(0,0,0,.12); color:#1e293b; box-shadow:0 2px 8px rgba(0,0,0,.12); }\n'
         '    .theme-toggle:hover { transform:scale(1.08); }\n'
@@ -1656,6 +1674,22 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    .hist-table .pred-col { color:#fff; font-weight:700; }\n'
         '    .hist-table .run-col  { color:rgba(255,255,255,.25); }\n'
         '\n'
+        '    .fi-row { margin-bottom:7px; }\n'
+        '    .fi-label-row { display:flex; justify-content:space-between; font-size:.76rem; margin-bottom:3px; }\n'
+        '    .fi-lbl { color:rgba(255,255,255,.6); }\n'
+        '    .fi-pct { color:rgba(255,255,255,.4); }\n'
+        '    .fi-track { height:5px; background:rgba(255,255,255,.08); border-radius:99px; }\n'
+        '    .fi-fill  { height:5px; border-radius:99px; background:linear-gradient(90deg,TMPL_BTN,TMPL_ACCENT); }\n'
+        '    body.light .fi-lbl { color:#334155 !important; }\n'
+        '    body.light .fi-pct { color:#64748b !important; }\n'
+        '    body.light .fi-track { background:rgba(0,0,0,.08) !important; }\n'
+        '    .tip-wrap { position:relative; display:inline-flex; align-items:center; margin-left:6px; }\n'
+        '    .tip-icon { cursor:help; color:rgba(255,255,255,.35); font-size:.65rem; font-weight:700; border:1px solid rgba(255,255,255,.22); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; user-select:none; }\n'
+        '    .tip-box { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:rgba(15,25,45,.95); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:8px 12px; color:rgba(255,255,255,.82); font-size:.74rem; white-space:nowrap; z-index:99; box-shadow:0 4px 16px rgba(0,0,0,.5); }\n'
+        '    .tip-wrap:hover .tip-box { display:block; }\n'
+        '    body.light .tip-icon { color:rgba(0,0,0,.4); border-color:rgba(0,0,0,.2); }\n'
+        '    body.light .tip-box { background:rgba(255,255,255,.97); border-color:rgba(0,0,0,.12); color:#334155; box-shadow:0 4px 16px rgba(0,0,0,.15); }\n'
+        '\n'
         '    @media (max-width: 768px) {\n'
         '      #mainGrid { grid-template-columns: 1fr !important; }\n'
         '      .hero-h1  { font-size: 2rem !important; }\n'
@@ -1734,7 +1768,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">\n'
         '              <div class="mini-stat">\n'
         '                <div style="color:rgba(255,255,255,.35);font-size:.7rem;margin-bottom:4px">Algorithm</div>\n'
-        '                <div style="color:#fff;font-weight:600;font-size:.82rem">TMPL_ALGO</div>\n'
+        '                <div style="color:#fff;font-weight:600;font-size:.82rem" id="algoValue">TMPL_ALGO</div>\n'
         '              </div>\n'
         '              <div class="mini-stat">\n'
         '                <div style="color:rgba(255,255,255,.35);font-size:.7rem;margin-bottom:4px" id="metricLabel">TMPL_METRIC_LABEL</div>\n'
@@ -1778,7 +1812,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '\n'
         '            <div id="benchmarkBadge" style="display:none;font-size:.78rem;font-weight:600;padding:4px 14px;border-radius:99px;margin-bottom:12px"></div>\n'
         '            <div id="ciSec" style="display:none;margin-bottom:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px">\n'
-        '              <div style="color:rgba(255,255,255,.28);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Confidence Interval <span style="font-weight:400;opacity:.6">(±1σ &middot; ~68%)</span></div>\n'
+        '              <div style="color:rgba(255,255,255,.28);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center">Confidence Interval <span style="font-weight:400;opacity:.6;margin-left:4px">(±1σ &middot; ~68%)</span><span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Your prediction falls within ±1σ (one standard deviation) of this range.</span></span></div>\n'
         '              <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:6px"><span id="ciLower">—</span><span style="color:rgba(255,255,255,.3)">range</span><span id="ciUpper">—</span></div>\n'
         '              <div style="height:8px;background:rgba(255,255,255,.06);border-radius:99px;position:relative">\n'
         '                <div style="position:absolute;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,TMPL_BTN59,TMPL_BTN99)"></div>\n'
@@ -1865,6 +1899,8 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    if(!m||!m.task) return;\n'
         '    var ml=document.getElementById(\'metricLabel\'),mv=document.getElementById(\'metricValue\');\n'
         '    var ml2=document.getElementById(\'metricLabel2\'),mv2=document.getElementById(\'metricValue2\');\n'
+        '    var av=document.getElementById(\'algoValue\');\n'
+        '    if(av&&m.algorithm){av.textContent=m.algorithm;}\n'
         '    if(m.task===\'regression\'){\n'
         '      if(m.r2!==undefined&&m.r2>=0.7){ml.textContent=\'R²\';mv.textContent=m.r2.toFixed(3);mv.style.color=m.r2>=0.9?\'#4ade80\':\'#facc15\';}\n'
         '      else if(m.mae!==undefined){ml.textContent=\'MAE\';mv.textContent=\'±\'+Math.round(m.mae);mv.style.color=\'#facc15\';}\n'
@@ -2031,22 +2067,11 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '        var lo = data.ci_lower, hi = data.ci_upper, pred = data.prediction;\n'
         '        document.getElementById(\'ciLower\').textContent = lo < 0 ? \'0\' : lo.toFixed(2);\n'
         '        document.getElementById(\'ciUpper\').textContent = hi.toFixed(2);\n'
-        '        resConf.textContent = \'Range: \' + (lo < 0 ? \'0\' : lo.toFixed(0)) + \' – \' + hi.toFixed(0) + \'  (±1σ)\';\n'
+        '        resConf.textContent = \'\';\n'
         '        var leftPct = hi > lo ? ((pred-lo)/(hi-lo)*0.8) : 0.5;\n'
         '        document.getElementById(\'ciDot\').style.left = Math.max(5,Math.min(95,leftPct*100)).toFixed(1)+\'%\';\n'
         '        document.getElementById(\'ciSec\').style.display = \'block\';\n'
         '      } else { resConf.textContent = \'\'; }\n'
-        '      var m = data.metrics || {};\n'
-        '      if (m.target_mean !== undefined) {\n'
-        '        var sig = (data.prediction - m.target_mean) / (m.target_std || 1);\n'
-        '        var bb = document.getElementById(\'benchmarkBadge\');\n'
-        '        if (bb) {\n'
-        '          var bl=sig<-0.5?\'Below Average\':sig>0.5?\'Above Average\':\'Near Average\';\n'
-        '          var bc=sig<-0.5?\'#4ade80\':sig>0.5?\'#f87171\':\'#facc15\';\n'
-        '          bb.textContent=bl; bb.style.color=bc; bb.style.background=\'rgba(255,255,255,.06)\';\n'
-        '          bb.style.border=\'1px solid \'+bc+\'44\'; bb.style.display=\'inline-block\';\n'
-        '        }\n'
-        '      }\n'
         '    }\n'
         '\n'
         '    inputSum.innerHTML = \'\';\n'
@@ -2065,8 +2090,8 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '        var pct = Math.round(fi.importance / fiMax * 100);\n'
         '        var opa = (0.35 + (fi.importance / fiMax) * 0.65).toFixed(2);\n'
         '        var lbl = fi.feature.replace(/x\\d+_/g,\'\').replace(/[_\\-]/g,\' \').trim();\n'
-        '        return \'<div style="margin-bottom:7px"><div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px"><span style="color:rgba(255,255,255,.6)">\'+lbl+\'</span><span style="color:rgba(255,255,255,.4)">\'+pct+\'%</span></div>\'+\n'
-        '               \'<div style="height:5px;background:rgba(255,255,255,.08);border-radius:99px"><div style="height:5px;border-radius:99px;background:linear-gradient(90deg,TMPL_BTN,TMPL_ACCENT);width:\'+pct+\'%"></div></div></div>\';\n'
+        '        return \'<div class="fi-row"><div class="fi-label-row"><span class="fi-lbl">\'+lbl+\'</span><span class="fi-pct">\'+pct+\'%</span></div>\'+\n'
+        '               \'<div class="fi-track"><div class="fi-fill" style="width:\'+pct+\'%"></div></div></div>\';\n'
         '      }).join(\'\');\n'
         '      fiSec.style.display = \'flex\';\n'
         '      fiSec.style.flexDirection = \'column\';\n'
