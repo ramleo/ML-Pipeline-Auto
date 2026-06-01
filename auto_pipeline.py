@@ -334,6 +334,23 @@ if high_missing:
 numeric_features = X.select_dtypes(include=[np.number]).columns.tolist()
 categorical_features = X.select_dtypes(exclude=[np.number]).columns.tolist()
 
+# Drop date/datetime columns — they encode time-series info the model can't use directly
+import re as _re
+_date_name_pat = _re.compile(r'date|time|timestamp|datetime|_dt$|^dt_', _re.IGNORECASE)
+_date_val_pat  = _re.compile(r'^\d{4}-\d{2}-\d{2}')
+
+def _is_date_col(col, df):
+    if _date_name_pat.search(col):
+        return True
+    sample = df[col].dropna().astype(str).head(50)
+    return sum(1 for v in sample if _date_val_pat.match(v)) / max(len(sample), 1) > 0.5
+
+_date_cols = [c for c in categorical_features if _is_date_col(c, X)]
+if _date_cols:
+    _warn(f"Dropping date/datetime columns (not usable as prediction inputs): {_date_cols}")
+    X = X.drop(columns=_date_cols)
+    categorical_features = [c for c in categorical_features if c not in _date_cols]
+
 _ok(f"Numeric features  ({len(numeric_features)}): {numeric_features}")
 _ok(f"Categorical features ({len(categorical_features)}): {categorical_features}")
 
@@ -1466,6 +1483,13 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    input[type="number"]::-webkit-inner-spin-button,\n'
         '    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\n'
         '    input[type="number"] { -moz-appearance: textfield; }\n'
+        '    .sum-row { display:flex; align-items:baseline; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); gap:4px; }\n'
+        '    .sum-row:last-child { border-bottom:none; }\n'
+        '    .sum-lbl { flex:1; font-size:.84rem; color:rgba(255,255,255,.35); min-width:0; }\n'
+        '    .sum-val { flex:0 0 auto; min-width:48px; text-align:right; font-weight:500; font-size:.84rem; color:#fff; }\n'
+        '    .sum-col { flex:1; min-width:0; }\n'
+        '    .sum-divider { width:1px; background:rgba(255,255,255,.22); margin:0 14px; flex-shrink:0; align-self:stretch; }\n'
+        '    #inputSummary { display:flex; align-items:stretch; }\n'
         '    .inp-lbl {\n'
         '      display: block; font-size: .68rem; font-weight: 700;\n'
         '      text-transform: uppercase; letter-spacing: .09em;\n'
@@ -1705,7 +1729,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '\n'
         '            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px;margin-top:12px">\n'
         '              <div style="color:rgba(255,255,255,.28);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Input Summary</div>\n'
-        '              <div id="inputSummary" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.84rem"></div>\n'
+        '              <div id="inputSummary"></div>\n'
         '            </div>\n'
         '\n'
         '          </div>\n'
@@ -1958,15 +1982,15 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    }\n'
         '\n'
         '    inputSum.innerHTML = \'\';\n'
-        '    summary.forEach(function(pair) {\n'
-        '      var d = document.createElement(\'div\');\n'
-        '      d.style.cssText = \'display:flex;justify-content:space-between\';\n'
-        '      d.innerHTML =\n'
-        '        \'<span style="color:rgba(255,255,255,.35)">\' + pair[0] + \'</span>\' +\n'
-        '        \'<span style="color:#fff;font-weight:500">\' + pair[1] + \'</span>\';\n'
-        '      inputSum.appendChild(d);\n'
+        '    var _lCol = document.createElement(\'div\'); _lCol.className = \'sum-col\';\n'
+        '    var _sep  = document.createElement(\'div\'); _sep.className  = \'sum-divider\';\n'
+        '    var _rCol = document.createElement(\'div\'); _rCol.className = \'sum-col\';\n'
+        '    summary.forEach(function(_p, _si) {\n'
+        '      var _row = document.createElement(\'div\'); _row.className = \'sum-row\';\n'
+        '      _row.innerHTML = \'<span class="sum-lbl">\'  + _p[0] + \'</span><span class="sum-val">\' + _p[1] + \'</span>\';\n'
+        '      (_si % 2 === 0 ? _lCol : _rCol).appendChild(_row);\n'
         '    });\n'
-        '\n'
+        '    inputSum.appendChild(_lCol); inputSum.appendChild(_sep); inputSum.appendChild(_rCol);\n'
         '    if (data.feature_importance && data.feature_importance.length) {\n'
         '      var fiMax = data.feature_importance[0].importance || 1;\n'
         '      fiBars.innerHTML = data.feature_importance.map(function(fi){\n'
@@ -2001,13 +2025,32 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    document.querySelectorAll(\'.inp[type="number"]\').forEach(function(inp) {\n'
         '      var fname = inp.name, key = fname.replace(/\\s+/g,\'_\');\n'
         '      var r = (ranges && ranges[fname]) || {min:0, max:100, step:1};\n'
+        '      var hasMax = r.max !== null && r.max !== undefined;\n'
+        '      var slMax  = r.slider_max || (hasMax ? r.max : 500000);\n'
         '      if (!document.getElementById(\'sl_\'+key)) {\n'
         '        var sl = document.createElement(\'input\'); sl.type=\'range\'; sl.className=\'slider\';\n'
-        '        sl.id=\'sl_\'+key; sl.min=r.min; sl.max=r.max; sl.step=r.step; sl.tabIndex=-1;\n'
+        '        sl.id=\'sl_\'+key; sl.min=r.min; sl.max=slMax; sl.step=r.step; sl.tabIndex=-1;\n'
         '        inp.parentElement.appendChild(sl);\n'
+        '        inp.min  = r.min;\n'
+        '        inp.step = r.step;\n'
+        '        if (hasMax) {\n'
+        '          inp.max = r.max;\n'
+        '          inp.placeholder = r.min.toLocaleString() + \' – \' + r.max.toLocaleString();\n'
+        '        } else {\n'
+        '          inp.removeAttribute(\'max\');\n'
+        '          inp.placeholder = r.min.toLocaleString() + \'+ (no upper limit)\';\n'
+        '        }\n'
         '        inp.addEventListener(\'input\', function() {\n'
         '          var v=parseFloat(this.value);\n'
-        '          if (!isNaN(v)&&v>=0) { if(v>parseFloat(sl.max))sl.max=Math.ceil(v*2); sl.value=v; }\n'
+        '          if (!isNaN(v) && v >= parseFloat(inp.min)) { if(v>parseFloat(sl.max))sl.max=Math.ceil(v*1.5); sl.value=v; }\n'
+        '        });\n'
+        '        inp.addEventListener(\'blur\', function() {\n'
+        '          var v=parseFloat(this.value);\n'
+        '          if (!isNaN(v)) {\n'
+        '            var mn=parseFloat(this.min), mx=this.max!==\'\'?parseFloat(this.max):NaN;\n'
+        '            if (!isNaN(mn) && v < mn) { this.value=mn; sl.value=mn; }\n'
+        '            if (!isNaN(mx) && v > mx) { this.value=mx; sl.value=mx; }\n'
+        '          }\n'
         '        });\n'
         '        sl.addEventListener(\'input\', function() {\n'
         '          inp.value=this.value;\n'
