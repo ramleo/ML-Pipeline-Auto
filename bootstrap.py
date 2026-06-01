@@ -1518,7 +1518,8 @@ Choose **3** (Claude Code, default) and answer the prompts.
 
 # ════════════════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════════════════
-FILES["auto_pipeline.py"] = r'''#!/usr/bin/env python3
+FILES["auto_pipeline.py"] = r'''
+#!/usr/bin/env python3
 """
 auto_pipeline.py — Automated ML Pipeline (no Claude/AI required)
 Usage: python3 auto_pipeline.py
@@ -2983,6 +2984,9 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    }\n'
         '    select.inp { cursor: pointer; }\n'
         '    select.inp option { background: #1e2a3a; color: #fff; }\n'
+        '    input[type="number"]::-webkit-inner-spin-button,\n'
+        '    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\n'
+        '    input[type="number"] { -moz-appearance: textfield; }\n'
         '    .inp-lbl {\n'
         '      display: block; font-size: .68rem; font-weight: 700;\n'
         '      text-transform: uppercase; letter-spacing: .09em;\n'
@@ -3523,7 +3527,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      }\n'
         '      if (!document.getElementById(\'sl_\'+key)) {\n'
         '        var sl = document.createElement(\'input\'); sl.type=\'range\'; sl.className=\'slider\';\n'
-        '        sl.id=\'sl_\'+key; sl.min=r.min; sl.max=r.max; sl.step=r.step;\n'
+        '        sl.id=\'sl_\'+key; sl.min=r.min; sl.max=r.max; sl.step=r.step; sl.tabIndex=-1;\n'
         '        inp.parentElement.appendChild(sl);\n'
         '        var sv2 = document.getElementById(\'sv_\'+key);\n'
         '        inp.addEventListener(\'input\', function() {\n'
@@ -4017,7 +4021,8 @@ def _post_pipeline_menu(root, cfg, task_type, pipeline, label_encoder=None):
 
 
 # ── Run the post-pipeline menu ────────────────────────────────────────
-_post_pipeline_menu(ROOT, cfg, task_type, final_pipe, label_encoder)'''
+_post_pipeline_menu(ROOT, cfg, task_type, final_pipe, label_encoder)
+'''
 
 FILES["data/.gitkeep"]   = ""
 FILES["models/.gitkeep"] = ""
