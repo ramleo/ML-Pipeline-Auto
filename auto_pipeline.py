@@ -636,10 +636,12 @@ if task_type == 'regression':
 # Feature ranges for slider UI — web search first, fallback to dataset percentiles
 def _fetch_domain_range(col_name, domain_hint=""):
     """Search DuckDuckGo for typical min/max for this feature.
-    Uses the HTML search endpoint which returns real result snippets.
+    Uses domain-aware queries (e.g. 'age insurance minimum maximum range')
+    so results come from industry documents, not generic statistics.
     Returns (min, max) or None on failure."""
     import urllib.request, urllib.parse, re as _r2
-    terms = f"{col_name} {domain_hint} minimum maximum valid range statistics".strip()
+    # Domain-aware query: include domain so results are domain-specific
+    terms = f"{col_name} {domain_hint} minimum maximum valid range".strip()
     query = urllib.parse.quote_plus(terms)
     url   = f"https://html.duckduckgo.com/html/?q={query}"
     try:
@@ -648,17 +650,17 @@ def _fetch_domain_range(col_name, domain_hint=""):
         })
         with urllib.request.urlopen(req, timeout=8) as resp:
             html = resp.read().decode("utf-8", errors="ignore")
-        # Pull text from result snippets
+        # Pull text from result snippets only (not nav/ads)
         snippets = _r2.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, _r2.DOTALL)
-        text = " ".join(_r2.sub(r"<[^>]+>", " ", s) for s in snippets[:6])
+        text = " ".join(_r2.sub(r"<[^>]+>", " ", s) for s in snippets[:8])
         if not text.strip():
             return None
-        # Look for explicit range patterns: "18 to 65", "300-850", "between X and Y"
+        # Look for explicit range patterns: "18 to 70", "300-850", "between X and Y"
         pairs = _r2.findall(r'(\d{1,7}(?:\.\d+)?)\s*(?:to|–|-|and)\s*(\d{1,7}(?:\.\d+)?)', text)
         valid = [(float(a), float(b)) for a, b in pairs if float(b) > float(a) > 0]
         if valid:
             return min(a for a, b in valid), max(b for a, b in valid)
-        # Fallback: collect all reasonable numbers
+        # Fallback: collect all reasonable numbers from snippets
         nums = sorted(float(x) for x in _r2.findall(r'\b(\d{1,6}(?:\.\d+)?)\b', text)
                       if 0 < float(x) < 1_000_000)
         if len(nums) >= 2:
