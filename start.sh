@@ -281,3 +281,15 @@ echo -e "${GREEN}▶ Running ML pipeline (no Claude required)...${RESET}"
 cd "$PROJECT_DIR"
 source ".venv/bin/activate"
 python3 auto_pipeline.py
+
+# ── Step 13: Start prediction API ──────────────────────────────────
+echo ""
+echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}${BOLD}║  🚀  Pipeline complete! Starting API...          ║${RESET}"
+echo -e "${CYAN}${BOLD}╠══════════════════════════════════════════════════╣${RESET}"
+echo -e "${CYAN}${BOLD}║${RESET}  Open in browser: http://localhost:8000          ${CYAN}${BOLD}║${RESET}"
+echo -e "${CYAN}${BOLD}║${RESET}  API docs:        http://localhost:8000/docs     ${CYAN}${BOLD}║${RESET}"
+echo -e "${CYAN}${BOLD}║${RESET}  Press Ctrl+C to stop the server                ${CYAN}${BOLD}║${RESET}"
+echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════╝${RESET}"
+echo ""
+python3 app.py

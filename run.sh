@@ -8,7 +8,7 @@
 # ──────────────────────────────────────────────────────────────────
 set -e
 
-IMAGE="builds-bootstrap"
+IMAGE="ml-pipeline-auto"
 OUTPUT_DIR="$(pwd)/output"
 
 # Check Docker daemon is reachable before doing anything
@@ -34,6 +34,7 @@ docker build -f Dockerfile.bootstrap -t "$IMAGE" .
 echo ""
 echo "Starting ML Pipeline..."
 docker run --rm -it \
+  -p 8000:8000 \
   -v "$OUTPUT_DIR":/output \
   -v "$HOME/.config/gh":/root/.config/gh:ro \
   "$IMAGE"
