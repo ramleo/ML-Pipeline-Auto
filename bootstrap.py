@@ -2149,6 +2149,7 @@ if task_type == 'regression':
             'target_std':  round(float(_np2.std(y)), 2),
             'target_min':  round(float(_np2.min(y)), 2),
             'target_max':  round(float(_np2.max(y)), 2),
+            'target': target_col,
         }
         import json as _js
         _mp = MODELS_DIR / 'metrics.json'
@@ -2156,6 +2157,16 @@ if task_type == 'regression':
         _ok(f'Metrics → {_mp}  R²={_metrics_out["r2"]}  MAE={_metrics_out["mae"]}  RMSE={_metrics_out["rmse"]}')
     except Exception as _me:
         _warn(f'Metrics save skipped: {_me}')
+
+if task_type == 'classification':
+    try:
+        import json as _jsc
+        _mpc = MODELS_DIR / 'metrics.json'
+        _classes_out = [str(c) for c in label_encoder.classes_] if label_encoder is not None else []
+        _mpc.write_text(_jsc.dumps({'task':'classification','algorithm':best_name,'target':target_col,'accuracy':round(metrics.get('accuracy',0),4),'classes':_classes_out},indent=2))
+        _ok(f'Metrics → {_mpc}')
+    except Exception as _mce:
+        _warn(f'Classification metrics save skipped: {_mce}')
 
 # Feature ranges for slider UI — web search first, fallback to dataset percentiles
 def _fetch_domain_range(col_name, domain_hint=""):
@@ -3333,11 +3344,11 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '\n'
         '            <div id="benchmarkBadge" style="display:none;font-size:.78rem;font-weight:600;padding:4px 14px;border-radius:99px;margin-bottom:12px"></div>\n'
         '            <div id="ciSec" style="display:none;margin-bottom:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px">\n'
-        '              <div style="color:rgba(255,255,255,.28);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center">Confidence Interval <span style="font-weight:400;opacity:.6;margin-left:4px">(±1σ &middot; ~68%)</span><span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Your prediction falls within ±1σ (one standard deviation) of this range.</span></span></div>\n'
-        '              <div style="display:flex;justify-content:space-between;font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:6px"><span id="ciLower">—</span><span style="color:rgba(255,255,255,.3)">range</span><span id="ciUpper">—</span></div>\n'
+        '              <div id="ciHeader" style="color:rgba(255,255,255,.28);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center">Predicted Range<span class="tip-wrap"><span class="tip-icon">?</span><span class="tip-box">Your prediction falls within \u00b11\u03c3 (~68% probability) of this estimated range.</span></span></div>\n'
+        '              <div style="display:flex;justify-content:space-between;align-items:center;font-size:.88rem;font-weight:600;color:rgba(255,255,255,.75);margin-bottom:10px"><span id="ciLower">\u2014</span><span style="color:rgba(255,255,255,.25);font-size:.72rem;font-weight:400">to</span><span id="ciUpper">\u2014</span></div>\n'
         '              <div style="height:8px;background:rgba(255,255,255,.06);border-radius:99px;position:relative">\n'
-        '                <div style="position:absolute;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,TMPL_BTN59,TMPL_BTN99)"></div>\n'
-        '                <div id="ciDot" style="position:absolute;width:12px;height:12px;border-radius:50%;background:TMPL_BTN;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px TMPL_BTN66"></div>\n'
+        '                <div id="ciFill" style="position:absolute;height:100%;width:50%;border-radius:99px;background:linear-gradient(90deg,#1565c0,#2979ff);transition:width .4s ease"></div>\n'
+        '                <div id="ciDot" style="position:absolute;width:14px;height:14px;border-radius:50%;background:#2979ff;border:2px solid rgba(255,255,255,.75);top:50%;transform:translate(-50%,-50%);transition:left .4s ease;box-shadow:0 0 8px rgba(41,121,255,.55)"></div>\n'
         '              </div>\n'
         '            </div>\n'
         '            <div id="probSec" style="display:none;margin-bottom:20px">\n'
@@ -3392,6 +3403,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '\n'
         '<script>\n'
         '  var IS_CLASS = TMPL_IS_CLASS;\n'
+        '  var _resLabelText = \'\';\n'
         '  var CLASSES  = TMPL_CLASSES;\n'
         '\n'
         '  var pForm       = document.getElementById(\'pForm\');\n'
@@ -3422,6 +3434,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    var ml2=document.getElementById(\'metricLabel2\'),mv2=document.getElementById(\'metricValue2\');\n'
         '    var av=document.getElementById(\'algoValue\');\n'
         '    if(av&&m.algorithm){av.textContent=m.algorithm;}\n'
+        '        if(m.target){\n      var _t=m.target.replace(/[_\\-]/g,\' \').replace(/\\b\\w/g,function(c){return c.toUpperCase();});\n      _resLabelText=(m.task===\'regression\'?\'Estimated \':\'Predicted \')+_t;\n      var _ch=document.getElementById(\'ciHeader\');\n      if(_ch)_ch.textContent=\'Likely \'+_t+\' Range\';\n    }\n'
         '    if(m.task===\'regression\'){\n'
         '      if(m.r2!==undefined&&m.r2>=0.7){ml.textContent=\'R²\';mv.textContent=m.r2.toFixed(3);mv.style.color=m.r2>=0.9?\'#4ade80\':\'#facc15\';}\n'
         '      else if(m.mae!==undefined){ml.textContent=\'MAE\';mv.textContent=\'±\'+Math.round(m.mae);mv.style.color=\'#facc15\';}\n'
@@ -3555,7 +3568,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      var labels = CLASSES.length ? CLASSES : probs.map(function(_,i){ return \'Class \' + i; });\n'
         '      var maxP   = Math.max.apply(null, probs);\n'
         '\n'
-        '      resLabel.textContent = \'Classified\';\n'
+        '      resLabel.textContent = _resLabelText || \'Classified\';\n'
         '      resConf.textContent  = \'Confidence: \' + (maxP * 100).toFixed(1) + \'%\';\n'
         '\n'
         '      probBars.innerHTML = \'\';\n'
@@ -3582,15 +3595,15 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '        });\n'
         '      }, 60);\n'
         '    } else {\n'
-        '      resLabel.textContent = \'Estimated Value\';\n'
+        '      resLabel.textContent = _resLabelText || \'Estimated Value\';\n'
         '      probSec.style.display = \'none\';\n'
         '      if (data.ci_lower !== undefined && data.ci_upper !== undefined) {\n'
         '        var lo = data.ci_lower, hi = data.ci_upper, pred = data.prediction;\n'
         '        document.getElementById(\'ciLower\').textContent = lo < 0 ? \'0\' : lo.toFixed(2);\n'
         '        document.getElementById(\'ciUpper\').textContent = hi.toFixed(2);\n'
         '        resConf.textContent = \'\';\n'
-        '        var leftPct = hi > lo ? ((pred-lo)/(hi-lo)*0.8) : 0.5;\n'
-        '        document.getElementById(\'ciDot\').style.left = Math.max(5,Math.min(95,leftPct*100)).toFixed(1)+\'%\';\n'
+        '        var rawPct = hi > lo ? (pred-lo)/(hi-lo) : 0.5; var dotPct = Math.max(5,Math.min(92,rawPct*100)).toFixed(1);\n'
+        '        document.getElementById(\'ciFill\').style.width = dotPct+\'%\'; document.getElementById(\'ciDot\').style.left = dotPct+\'%\';\n'
         '        document.getElementById(\'ciSec\').style.display = \'block\';\n'
         '      } else { resConf.textContent = \'\'; }\n'
         '    }\n'
