@@ -653,27 +653,32 @@ def _fetch_domain_range(col_name):
     return None
 
 try:
-    import json as _js2
+    import json as _js2, math as _math
     _rng_rows = {}
     for _c in num_feats:
         if _c not in X.columns:
             continue
+        _col = X[_c].dropna()
         # Try web search first
         _web = _fetch_domain_range(_c)
         if _web:
             _mn, _mx = _web
+            _is_int = False
         else:
-            # Fallback: dataset percentiles p5-p95
-            _mn = float(X[_c].quantile(0.05))
-            _mx = float(X[_c].quantile(0.95))
-        _pad = (_mx - _mn) * 0.05
-        _mag = 10 ** max(0, int(len(str(max(1, int(abs(_mx))))) - 2))
-        _step = round(max(0.01, _mag / 100), 4)
-        _rng_rows[_c] = {
-            'min':  round(_mn, 2),
-            'max':  round(_mx + _pad, 2),
-            'step': _step,
-        }
+            _mn = float(_col.quantile(0.05))
+            _mx = float(_col.quantile(0.95))
+            # Detect integer-valued column
+            _is_int = (_col == _col.round(0)).all()
+        if _is_int:
+            _mn  = _math.floor(_mn)
+            _mx  = _math.ceil(_mx)
+            _step = 1
+        else:
+            _mn  = round(_mn, 1)
+            _mx  = round(_mx + (_mx - _mn) * 0.05, 1)
+            _mag = 10 ** max(0, int(len(str(max(1, int(abs(_mx))))) - 2))
+            _step = round(max(0.1, _mag / 100), 2)
+        _rng_rows[_c] = {'min': _mn, 'max': _mx, 'step': _step}
     (_rp := MODELS_DIR / 'feature_ranges.json').write_text(_js2.dumps(_rng_rows, indent=2))
     _ok(f'Feature ranges → {_rp}')
 except Exception as _re:
