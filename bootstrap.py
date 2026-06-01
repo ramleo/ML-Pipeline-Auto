@@ -64,6 +64,12 @@ def collect_inputs():
         "7": "azure",     "8": "none",
     }.get(deploy_choice, "ask_later")
 
+    render_api_key = ""
+    if platform == "render":
+        print(f"\n{B}  Render API key{X} — needed for automatic deployment.")
+        print(f"  Get it: dashboard.render.com → Account Settings → API Keys")
+        render_api_key = input(f"  Render API key (press Enter to deploy manually later): ").strip()
+
     print(f"\n{B}GitHub setup:{X}")
     gh_detected = ""
     try:
@@ -91,6 +97,7 @@ def collect_inputs():
     return dict(
         project_name=project_name, dataset_path=dataset_path,
         dataset_filename=dataset_filename, platform=platform,
+        render_api_key=render_api_key,
         github_username=gh_user, github_repo=gh_repo, github_visibility=gh_vis,
     )
 
@@ -112,6 +119,7 @@ def write_config(cfg, dest):
         "created_at":          datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "venv_path":           ".venv",
         "template_version":    VERSION,
+        "render_api_key":      cfg.get("render_api_key", ""),
     }
     (dest / ".ml_config.json").write_text(json.dumps(config, indent=2))
     print(f"  {G}✔ .ml_config.json written{X}")
@@ -1346,9 +1354,9 @@ if __name__ == "__main__":
     print(f"{G}▶ Installing dependencies (this may take a minute)...{X}")
     _install_libomp()
     pip = str(project_dir/".venv"/"bin"/"pip")
-    subprocess.run([pip,"install","--upgrade","pip","-q"],check=True)
+    subprocess.run([pip,"install","--upgrade","pip","--no-cache-dir","-q"],check=True)
     req = project_dir/"requirements.txt"
-    if req.exists(): subprocess.run([pip,"install","-r",str(req),"-q"],check=True)
+    if req.exists(): subprocess.run([pip,"install","-r",str(req),"--no-cache-dir","-q"],check=True)
     print(f"  {G}✔ Dependencies installed{X}")
     show_summary(cfg, project_dir)
     maybe_open_claude(project_dir)
