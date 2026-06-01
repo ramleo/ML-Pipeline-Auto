@@ -121,6 +121,15 @@ case "$DEPLOY_CHOICE" in
   *) PLATFORM="ask_later" ;;
 esac
 
+RENDER_API_KEY=""
+if [ "$PLATFORM" = "render" ]; then
+    echo ""
+    echo -e "  ${BOLD}Render API key${RESET} — needed for automatic deployment."
+    echo -e "  Get it: dashboard.render.com → Account Settings → API Keys"
+    read -rp "  Render API key (press Enter to deploy manually later): " RENDER_API_KEY
+    RENDER_API_KEY=$(echo "$RENDER_API_KEY" | xargs)
+fi
+
 echo ""
 echo -e "${BOLD}GitHub setup:${RESET}"
 
@@ -228,7 +237,8 @@ cat > "$STAGING_DIR/.ml_config.json" << CONFIGEOF
   "python_version": "${PY_VER}",
   "created_at": "${CREATED_AT}",
   "venv_path": ".venv",
-  "template_version": "1.0.0"
+  "template_version": "1.0.0",
+  "render_api_key": "${RENDER_API_KEY}"
 }
 CONFIGEOF
 echo -e "  ${GREEN}✔ Config ready${RESET}"

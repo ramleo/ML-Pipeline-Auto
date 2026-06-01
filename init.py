@@ -103,6 +103,12 @@ def collect_inputs() -> dict:
     )
     platform = PLATFORMS.get(deploy_choice, "ask_later")
 
+    render_api_key = ""
+    if platform == "render":
+        print(f"\n{B}  Render API key{X} — needed for automatic deployment.")
+        print(f"  Get it: dashboard.render.com → Account Settings → API Keys")
+        render_api_key = input(f"  Render API key (press Enter to deploy manually later): ").strip()
+
     # GitHub username — auto-detect from gh CLI if available
     print(f"\n{B}GitHub setup:{X}")
     gh_detected = ""
@@ -142,6 +148,7 @@ def collect_inputs() -> dict:
         "dataset_filename":  dataset_filename,
         "target_column":     target_column,
         "platform":          platform,
+        "render_api_key":    render_api_key,
         "github_username":   gh_user,
         "github_repo":       gh_repo or project_name,
         "github_visibility": gh_vis,
@@ -262,6 +269,7 @@ def write_config(cfg: dict, staging_dir: Path):
         "created_at":        datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "venv_path":         ".venv",
         "template_version":  "1.0.0",
+        "render_api_key":    cfg.get("render_api_key", ""),
     }
     (staging_dir / ".ml_config.json").write_text(json.dumps(config, indent=2))
     print(f"  {G}✔ .ml_config.json ready{X}")

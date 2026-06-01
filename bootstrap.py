@@ -1510,8 +1510,7 @@ Choose **3** (Claude Code, default) and answer the prompts.
 
 # ════════════════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════════════════
-FILES["auto_pipeline.py"] = r'''
-#!/usr/bin/env python3
+FILES["auto_pipeline.py"] = r'''#!/usr/bin/env python3
 """
 auto_pipeline.py — Automated ML Pipeline (no Claude/AI required)
 Usage: python3 auto_pipeline.py
@@ -3874,14 +3873,13 @@ def _push_github(root, cfg):
 
 
 def _deploy_render(root, cfg):
-    """Write render.yaml, commit, push, and print next steps."""
-    _print_header("Step 11 — Setting up Render Deployment")
-    proj     = cfg.get("project_name", "ml-project")
-    gh_user  = cfg.get("github_username", "")
-    gh_repo  = cfg.get("github_repo", "")
+    """Write render.yaml, commit, push, then deploy via Render API (if key provided)."""
+    _print_header("Step 11 — Deploying to Render")
+    proj    = cfg.get("project_name", "ml-project")
+    gh_user = cfg.get("github_username", "")
+    gh_repo = cfg.get("github_repo", "")
+    api_key = cfg.get("render_api_key", "")
 
-    # Render normalises the service name to lowercase and replaces
-    # underscores with hyphens when forming the subdomain URL.
     render_name = proj.lower().replace("_", "-")
 
     render_lines = [
@@ -3904,17 +3902,74 @@ def _deploy_render(root, cfg):
     subprocess.run(["git", "push", "origin", "main"], cwd=str(root), capture_output=True)
     _ok("render.yaml pushed to GitHub")
 
-    live = "https://" + render_name + ".onrender.com"
-    print("\n" + _B + "  Go live on Render (free, ~2 minutes):" + _X)
-    print("    1. Visit https://render.com → sign in with GitHub")
-    print("    2. Click New + → Web Service")
-    print("    3. Connect repo: " + gh_user + "/" + gh_repo)
-    print("    4. Render detects render.yaml → click Create Web Service")
-    print("    5. Live at: " + _G + live + _X)
-    print(_Y + "    Note: URL is always lowercase with hyphens — Render ignores case/underscores." + _X)
-    print("\n  Test once deployed:")
-    print("    curl " + live + "/health")
-    _ok("Render setup complete — finish in the Render dashboard")
+    if not api_key:
+        live = "https://" + render_name + ".onrender.com"
+        print("\n" + _B + "  No API key — finish manually on Render:" + _X)
+        print("    1. Visit https://render.com → sign in with GitHub")
+        print("    2. Click New + → Web Service")
+        print("    3. Connect repo: " + gh_user + "/" + gh_repo)
+        print("    4. Render detects render.yaml → click Create Web Service")
+        print("    5. Live at: " + _G + live + _X)
+        return
+
+    import urllib.request as _urlreq, json as _json_r, urllib.error as _urlerr
+
+    _headers = {
+        "Authorization": "Bearer " + api_key,
+        "Accept":        "application/json",
+        "Content-Type":  "application/json",
+    }
+
+    # Step 1 — get owner ID
+    try:
+        req = _urlreq.Request("https://api.render.com/v1/owners?limit=1", headers=_headers)
+        with _urlreq.urlopen(req, timeout=15) as r:
+            owners = _json_r.loads(r.read())
+        owner_id = owners[0]["owner"]["id"]
+    except Exception as e:
+        _warn("Could not reach Render API: " + str(e))
+        print("  Finish manually: https://render.com → New + → Web Service → " + gh_user + "/" + gh_repo)
+        return
+
+    # Step 2 — create web service
+    payload = _json_r.dumps({
+        "autoDeploy": "yes",
+        "branch":     "main",
+        "name":       render_name,
+        "ownerId":    owner_id,
+        "repo":       "https://github.com/" + gh_user + "/" + gh_repo,
+        "type":       "web_service",
+        "serviceDetails": {
+            "buildCommand": "pip install -r requirements.txt",
+            "startCommand": "uvicorn app:app --host 0.0.0.0 --port $PORT",
+            "envVars":      [{"key": "PYTHON_VERSION", "value": "3.11.0"}],
+            "plan":         "free",
+            "region":       "oregon",
+            "runtime":      "python",
+        },
+    }).encode()
+
+    try:
+        req = _urlreq.Request(
+            "https://api.render.com/v1/services",
+            data=payload,
+            headers=_headers,
+        )
+        with _urlreq.urlopen(req, timeout=30) as r:
+            result = _json_r.loads(r.read())
+        live = (result.get("service", {}).get("serviceDetails", {}).get("url")
+                or "https://" + render_name + ".onrender.com")
+        _ok("Service created on Render — deploying now (~2 min)")
+        print("\n  " + _G + _B + "Live at: " + live + _X)
+        print("  " + _Y + "Note: first deploy takes ~2 min on the free tier" + _X)
+        print("  Test: curl " + live + "/health")
+    except _urlerr.HTTPError as e:
+        body = e.read().decode()
+        _warn("Render API error " + str(e.code) + ": " + body)
+        print("  Finish manually: https://render.com → New + → Web Service → " + gh_user + "/" + gh_repo)
+    except Exception as e:
+        _warn("Render deployment failed: " + str(e))
+        print("  Finish manually: https://render.com → New + → Web Service → " + gh_user + "/" + gh_repo)
 
 
 def _post_pipeline_menu(root, cfg, task_type, pipeline, label_encoder=None):
