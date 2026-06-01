@@ -633,52 +633,89 @@ if task_type == 'regression':
     except Exception as _me:
         _warn(f'Metrics save skipped: {_me}')
 
-# Feature ranges for slider UI — web search for domain-typical ranges, fallback to dataset percentiles
-def _fetch_domain_range(col_name):
-    """Search online for typical min/max range for a feature column name.
-    Returns (min, max, step) or None if search fails."""
-    import urllib.request, urllib.parse, json as _j, re as _r
-    query = urllib.parse.quote(f"typical range valid values {col_name} dataset statistics")
-    url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
+# Feature ranges for slider UI — web search first, fallback to dataset percentiles
+def _fetch_domain_range(col_name, domain_hint=""):
+    """Search DuckDuckGo for typical min/max for this feature.
+    Uses the HTML search endpoint which returns real result snippets.
+    Returns (min, max) or None on failure."""
+    import urllib.request, urllib.parse, re as _r2
+    terms = f"{col_name} {domain_hint} minimum maximum valid range statistics".strip()
+    query = urllib.parse.quote_plus(terms)
+    url   = f"https://html.duckduckgo.com/html/?q={query}"
     try:
-        with urllib.request.urlopen(url, timeout=4) as resp:
-            data = _j.loads(resp.read().decode())
-        abstract = data.get("Abstract", "") + " " + data.get("AbstractText", "")
-        nums = [float(x) for x in _r.findall(r'\b(\d+(?:\.\d+)?)\b', abstract)]
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+        # Pull text from result snippets
+        snippets = _r2.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, _r2.DOTALL)
+        text = " ".join(_r2.sub(r"<[^>]+>", " ", s) for s in snippets[:6])
+        if not text.strip():
+            return None
+        # Look for explicit range patterns: "18 to 65", "300-850", "between X and Y"
+        pairs = _r2.findall(r'(\d{1,7}(?:\.\d+)?)\s*(?:to|–|-|and)\s*(\d{1,7}(?:\.\d+)?)', text)
+        valid = [(float(a), float(b)) for a, b in pairs if float(b) > float(a) > 0]
+        if valid:
+            return min(a for a, b in valid), max(b for a, b in valid)
+        # Fallback: collect all reasonable numbers
+        nums = sorted(float(x) for x in _r2.findall(r'\b(\d{1,6}(?:\.\d+)?)\b', text)
+                      if 0 < float(x) < 1_000_000)
         if len(nums) >= 2:
-            nums_sorted = sorted(nums)
-            return nums_sorted[0], nums_sorted[-1]
+            return nums[0], nums[-1]
     except Exception:
         pass
     return None
 
+# Fields where there is no meaningful upper limit (income, cost, etc.)
+_NO_UPPER_PAT = _re.compile(
+    r'income|salary|revenue|earning|wage|amount|price|cost|value|spending|net.worth|pay\b|turnover',
+    _re.IGNORECASE
+)
+
 try:
     import json as _js2, math as _math
+    # Detect dataset domain hint for better search queries
+    _domain_hint = cfg.get("project_name", "") or csv_path.stem
     _rng_rows = {}
     for _c in num_feats:
         if _c not in X.columns:
             continue
-        _col = X[_c].dropna()
-        # Try web search first
-        _web = _fetch_domain_range(_c)
+        _col     = X[_c].dropna()
+        _no_upper = bool(_NO_UPPER_PAT.search(_c))
+        _is_int   = (_col == _col.round(0)).all()
+
+        # --- web search ---
+        _info(f"  Searching web for range: {_c} ...")
+        _web = _fetch_domain_range(_c, domain_hint=_domain_hint)
         if _web:
-            _mn, _mx = _web
-            _is_int = False
+            _mn_raw, _mx_raw = _web
+            _ok(f"    Web range for '{_c}': {_mn_raw} – {_mx_raw}")
         else:
-            _mn = float(_col.quantile(0.05))
-            _mx = float(_col.quantile(0.95))
-            # Detect integer-valued column
-            _is_int = (_col == _col.round(0)).all()
+            _warn(f"    Web search failed for '{_c}', using dataset p5/p95")
+            _mn_raw = float(_col.quantile(0.05))
+            _mx_raw = float(_col.quantile(0.95))
+
+        # Integer vs decimal
         if _is_int:
-            _mn  = _math.floor(_mn)
-            _mx  = _math.ceil(_mx)
+            _mn   = _math.floor(_mn_raw)
             _step = 1
         else:
-            _mn  = round(_mn, 1)
-            _mx  = round(_mx + (_mx - _mn) * 0.05, 1)
-            _mag = 10 ** max(0, int(len(str(max(1, int(abs(_mx))))) - 2))
-            _step = round(max(0.1, _mag / 100), 2)
-        _rng_rows[_c] = {'min': _mn, 'max': _mx, 'step': _step}
+            _mn   = round(_mn_raw, 1)
+            _step = 0.1
+
+        if _no_upper:
+            # No hard upper limit — slider gets a generous visual ceiling (2× p95)
+            _slider_max = int(_col.quantile(0.95) * 2)
+            _rng_rows[_c] = {'min': _mn, 'max': None, 'step': _step, 'slider_max': _slider_max}
+            _ok(f"    '{_c}': no upper limit  (slider_max={_slider_max:,})")
+        else:
+            if _is_int:
+                _mx = _math.ceil(_mx_raw)
+            else:
+                _mx = round(_mx_raw + (_mx_raw - _mn_raw) * 0.05, 1)
+            _rng_rows[_c] = {'min': _mn, 'max': _mx, 'step': _step}
+
     (_rp := MODELS_DIR / 'feature_ranges.json').write_text(_js2.dumps(_rng_rows, indent=2))
     _ok(f'Feature ranges → {_rp}')
 except Exception as _re:
