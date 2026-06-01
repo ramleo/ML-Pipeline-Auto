@@ -2936,15 +2936,17 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         lbl = _fmt_label(feat)
         uniques = _cat_uniques.get(feat, [])
         if uniques:
-            opts = ''.join(
-                '<option value="' + v.replace('"', '&quot;') + '">' + v + '</option>'
+            pills = ''.join(
+                '<span class="pill" data-val="' + v.replace('"', '&quot;') + '">' + v + '</span>'
                 for v in uniques
             )
             fields_html += (
                 '\n          <div>'
                 '\n            <label class="inp-lbl">' + lbl + '</label>'
-                '\n            <select name="' + feat + '" class="inp" required>'
-                '<option value="" disabled selected>Select…</option>' + opts + '</select>'
+                '\n            <input type="hidden" name="' + feat + '" class="inp cat-inp">'
+                '\n            <div class="pill-group" data-for="' + feat + '">'
+                '\n              ' + pills +
+                '\n            </div>'
                 '\n          </div>'
             )
         else:
@@ -3043,8 +3045,17 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      border-color: TMPL_ACCENT;\n'
         '      box-shadow: 0 0 0 3px TMPL_ACCENT_ALPHA;\n'
         '    }\n'
-        '    select.inp { cursor: pointer; }\n'
-        '    select.inp option { background: #1e2a3a; color: #fff; }\n'
+        '    .pill-group { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }\n'
+        '    .pill {\n'
+        '      padding:5px 12px; border-radius:99px; font-size:.8rem; font-weight:500; cursor:pointer;\n'
+        '      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13);\n'
+        '      color:rgba(255,255,255,.55); transition:all .15s; user-select:none;\n'
+        '    }\n'
+        '    .pill:hover { background:rgba(255,255,255,.11); color:rgba(255,255,255,.85); }\n'
+        '    .pill.selected {\n'
+        '      background:rgba(41,121,255,.25); border-color:#2979ff;\n'
+        '      color:#fff; font-weight:600;\n'
+        '    }\n'
         '    input[type="number"]::-webkit-inner-spin-button,\n'
         '    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }\n'
         '    input[type="number"] { -moz-appearance: textfield; }\n'
@@ -3434,7 +3445,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    var payload = {};\n'
         '    var summary = [];\n'
         '    var _hasInvalid = false;\n'
-        '    pForm.querySelectorAll(\'input.inp, select.inp\').forEach(function(el) {\n'
+        '    pForm.querySelectorAll(\'input.inp\').forEach(function(el) {\n'
         '      var v = el.value.trim();\n'
         '      if (v !== \'\') {\n'
         '        payload[el.name] = (el.type === \'number\' && !isNaN(v)) ? parseFloat(v) : v;\n'
@@ -3623,6 +3634,19 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      }\n'
         '    });\n'
         '  }\n'
+        '  // ── Pill selectors (categorical) ──────────────────────────\n'
+        '  document.querySelectorAll(\'.pill-group\').forEach(function(group) {\n'
+        '    var fieldName = group.getAttribute(\'data-for\');\n'
+        '    var hiddenInp = pForm.querySelector(\'input[name="\' + fieldName + \'"].cat-inp\');\n'
+        '    group.querySelectorAll(\'.pill\').forEach(function(pill) {\n'
+        '      pill.addEventListener(\'click\', function() {\n'
+        '        group.querySelectorAll(\'.pill\').forEach(function(p){ p.classList.remove(\'selected\'); });\n'
+        '        pill.classList.add(\'selected\');\n'
+        '        if (hiddenInp) hiddenInp.value = pill.getAttribute(\'data-val\');\n'
+        '      });\n'
+        '    });\n'
+        '  });\n'
+        '\n'
         '  var _rangeData = {};\n'
         '  fetch(\'/ranges\').then(function(r){return r.json();})\n'
         '    .then(function(rng){ _rangeData = rng || {}; initSliders(_rangeData); initValidation(); })\n'
@@ -3636,9 +3660,10 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      inp.addEventListener(\'blur\', function() {\n'
         '        var r = _rangeData[inp.name]; if (!r) return;\n'
         '        var v = parseFloat(inp.value);\n'
-        '        if (inp.value !== \'\' && (isNaN(v) || v < r.min || v > r.max)) {\n'
+        '        var hasMax = r.max !== null && r.max !== undefined;\n'
+        '        if (inp.value !== \'\' && (isNaN(v) || v < r.min || (hasMax && v > r.max))) {\n'
         '          inp.style.borderColor = \'#f87171\';\n'
-        '          errEl.textContent = \'Expected \' + r.min + \' – \' + r.max;\n'
+        '          errEl.textContent = hasMax ? (\'Expected \' + r.min + \' – \' + r.max) : (\'Minimum \' + r.min);\n'
         '          errEl.style.display = \'block\';\n'
         '          inp.dataset.invalid = \'1\';\n'
         '        } else {\n'
@@ -3688,13 +3713,13 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '  function clearHistory(){ _history=[]; document.getElementById(\'histSection\').style.display=\'none\'; }\n'
         '\n'
         '  function clearAllFields() {\n'
-        '    pForm.querySelectorAll(\'input.inp, select.inp\').forEach(function(el) {\n'
-        '      if (el.tagName === \'SELECT\') { el.selectedIndex = 0; }\n'
-        '      else { el.value = \'\'; }\n'
+        '    pForm.querySelectorAll(\'input.inp\').forEach(function(el) {\n'
+        '      el.value = \'\';\n'
         '      el.style.borderColor = \'\';\n'
         '    });\n'
         '    pForm.querySelectorAll(\'.range-err\').forEach(function(e){ e.remove(); });\n'
         '    pForm.querySelectorAll(\'input[type="range"]\').forEach(function(sl){ sl.value = sl.min; });\n'
+        '    pForm.querySelectorAll(\'.pill\').forEach(function(p){ p.classList.remove(\'selected\'); });\n'
         '    emptyState.style.display  = \'flex\';\n'
         '    resultState.style.display = \'none\';\n'
         '    errState.style.display    = \'none\';\n'
@@ -4117,8 +4142,7 @@ def _post_pipeline_menu(root, cfg, task_type, pipeline, label_encoder=None):
 
 
 # ── Run the post-pipeline menu ────────────────────────────────────────
-_post_pipeline_menu(ROOT, cfg, task_type, final_pipe, label_encoder)
-'''
+_post_pipeline_menu(ROOT, cfg, task_type, final_pipe, label_encoder)'''
 
 FILES["data/.gitkeep"]   = ""
 FILES["models/.gitkeep"] = ""
