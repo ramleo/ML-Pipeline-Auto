@@ -1360,7 +1360,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
             classes = []
 
     theme    = _detect_domain(dataset_filename, num_feats + cat_feats, project_name)
-    title    = project_name.replace("-", " ").replace("_", " ").title()
+    title    = target_col.replace("_", " ").replace("-", " ").title() + " Predictor"
     icon     = theme.get("icon", "")
     desc     = theme["desc"]
     primary  = theme["primary"]
@@ -1388,6 +1388,13 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
             if _dyn != _m.group(1):
                 header_bg = header_bg.replace(_m.group(1), _dyn)
                 _ok("Unsplash: dynamic photo fetched via API")
+    # Light-mode hero: same image, lighter overlay
+    import re as _re_light
+    _url_m = _re_light.search(r"url\('[^']+'\)[^,]*", header_bg)
+    if _url_m:
+        header_bg_light = "linear-gradient(135deg,rgba(26,60,94,.35) 0%,rgba(13,33,55,.40) 100%)," + _url_m.group(0)
+    else:
+        header_bg_light = "linear-gradient(135deg,rgba(26,60,94,.35) 0%,rgba(13,33,55,.40) 100%)"
 
     _ok(f"Theme  : {theme['name']}  {icon}")
     _ok(f"Colors : primary={primary}  accent={accent}  body={body_bg}")
@@ -1524,6 +1531,8 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    body.light #batchResult { background:rgba(0,0,0,.03) !important; border-color:rgba(0,0,0,.08) !important; color:#475569 !important; }\n'
         '    body.light #uploadTxt { color:rgba(0,0,0,.45) !important; }\n'
         '    body.light .badge span { color:#2979ff !important; }\n'
+        '    body.light [style*=\'color:#fff;font-weight:700;font-size:1.05rem\'] { color:#1e293b !important; }\n'
+        '    body.light [style*=\'color:#fff;font-weight:700;font-size:.95rem\'] { color:#1e293b !important; }\n'
         '    body.light .mini-stat div { color:#64748b !important; }\n'
         '    .theme-toggle { position:fixed; top:14px; right:18px; z-index:999; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); color:#fff; font-size:1.1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.3); }\n'
         '    body.light .theme-toggle { background:rgba(255,255,255,.9); border-color:rgba(0,0,0,.12); color:#1e293b; box-shadow:0 2px 8px rgba(0,0,0,.12); }\n'
@@ -1539,12 +1548,14 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      50%  { filter: hue-rotate(18deg)  brightness(1.06); }\n'
         '      100% { filter: hue-rotate(-12deg) brightness(0.94); }\n'
         '    }\n'
+        '    body.light .bg-mesh { opacity:0; }\n'
         '\n'
         '    .hero {\n'
         '      background: TMPL_HEADER_BG;\n'
         '      background-size: cover;\n'
         '      background-position: center;\n'
         '    }\n'
+        '    body.light .hero { background: TMPL_HEADER_BG_LIGHT; }\n'
         '\n'
         '    .glass {\n'
         '      background: rgba(255,255,255,.055);\n'
@@ -1775,7 +1786,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '          </div>\n'
         '\n'
         '          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08)">\n'
-        '            <div style="color:rgba(255,255,255,.25);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">About this model</div>\n'
+        '            <div style="color:rgba(255,255,255,.25);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center">About this model<span class=\"tip-wrap\"><span class=\"tip-icon\">?</span><span class=\"tip-box\">MAE = Mean Absolute Error (avg prediction error). Est. Error = RMSE (root mean squared error).</span></span></div>\n'
         '            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">\n'
         '              <div class="mini-stat">\n'
         '                <div style="color:rgba(255,255,255,.35);font-size:.7rem;margin-bottom:4px">Algorithm</div>\n'
@@ -2254,6 +2265,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
     replacements = [
         ("TMPL_MESH_CSS",      mesh_css),
         ("TMPL_HEADER_BG",     header_bg),
+        ("TMPL_HEADER_BG_LIGHT", header_bg_light),
         ("TMPL_BADGE_BORDER",  badge_border),
         ("TMPL_BADGE_TEXT",    badge_text),
         ("TMPL_BADGE_BG",      badge_bg),
