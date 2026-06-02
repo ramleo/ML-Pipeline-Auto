@@ -1392,9 +1392,9 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
     import re as _re_light
     _url_m = _re_light.search(r"url\('[^']+'\)[^,]*", header_bg)
     if _url_m:
-        header_bg_light = "linear-gradient(135deg,rgba(26,60,94,.35) 0%,rgba(13,33,55,.40) 100%)," + _url_m.group(0)
+        header_bg_light = "linear-gradient(135deg,rgba(255,255,255,.62) 0%,rgba(220,235,255,.68) 100%)," + _url_m.group(0)
     else:
-        header_bg_light = "linear-gradient(135deg,rgba(26,60,94,.35) 0%,rgba(13,33,55,.40) 100%)"
+        header_bg_light = "linear-gradient(135deg,rgba(255,255,255,.62) 0%,rgba(220,235,255,.68) 100%)"
 
     _ok(f"Theme  : {theme['name']}  {icon}")
     _ok(f"Colors : primary={primary}  accent={accent}  body={body_bg}")
@@ -1556,6 +1556,9 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '      background-position: center;\n'
         '    }\n'
         '    body.light .hero { background: TMPL_HEADER_BG_LIGHT; }\n'
+        '    body.light .hero-h1 { color:#1a3a6b !important; text-shadow:none !important; }\n'
+        '    body.light .hero p  { color:#334155 !important; text-shadow:none !important; }\n'
+        '    body.light .hero > div > div:first-child { background:rgba(26,60,94,.1) !important; border-color:rgba(26,60,94,.25) !important; color:#1a3a6b !important; }\n'
         '\n'
         '    .glass {\n'
         '      background: rgba(255,255,255,.055);\n'
@@ -1709,8 +1712,10 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    .tip-icon { cursor:help; color:rgba(255,255,255,.35); font-size:.65rem; font-weight:700; border:1px solid rgba(255,255,255,.22); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; user-select:none; }\n'
         '    .tip-box { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:rgba(15,25,45,.95); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:8px 12px; color:rgba(255,255,255,.82); font-size:.74rem; white-space:nowrap; z-index:99; box-shadow:0 4px 16px rgba(0,0,0,.5); }\n'
         '    .tip-wrap:hover .tip-box { display:block; }\n'
-        '    body.light .tip-icon { color:rgba(0,0,0,.4); border-color:rgba(0,0,0,.2); }\n'
+        '    body.light .tip-icon { color:rgba(0,0,0,.6) !important; border-color:rgba(0,0,0,.35) !important; background:rgba(0,0,0,.07) !important; }\n'
         '    body.light .tip-box { background:rgba(255,255,255,.97); border-color:rgba(0,0,0,.12); color:#334155; box-shadow:0 4px 16px rgba(0,0,0,.15); }\n'
+        '    body.light #clearBtn { color:#334155 !important; background:rgba(0,0,0,.04) !important; border-color:rgba(0,0,0,.15) !important; }\n'
+        '    body.light button[onclick="clearHistory()"] { color:#64748b !important; background:rgba(0,0,0,.04) !important; border-color:rgba(0,0,0,.1) !important; }\n'
         '\n'
         '    @media (max-width: 768px) {\n'
         '      #mainGrid { grid-template-columns: 1fr !important; }\n'
