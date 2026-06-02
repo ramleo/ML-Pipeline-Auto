@@ -1709,7 +1709,7 @@ def _generate_frontend(root, cfg, task_type, num_feats, cat_feats, label_encoder
         '    body.light .fi-pct { color:#64748b !important; }\n'
         '    body.light .fi-track { background:rgba(0,0,0,.08) !important; }\n'
         '    .tip-wrap { position:relative; display:inline-flex; align-items:center; margin-left:6px; }\n'
-        '    .tip-icon { cursor:help; color:rgba(255,255,255,.35); font-size:.65rem; font-weight:700; border:1px solid rgba(255,255,255,.22); border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; user-select:none; }\n'
+        '    .tip-icon { cursor:help; color:rgba(255,255,255,.5); font-size:.72rem; font-weight:700; border:1.5px solid rgba(255,255,255,.35); border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; user-select:none; }\n'
         '    .tip-box { display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); background:rgba(15,25,45,.95); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:8px 12px; color:rgba(255,255,255,.82); font-size:.74rem; white-space:nowrap; z-index:99; box-shadow:0 4px 16px rgba(0,0,0,.5); }\n'
         '    .tip-wrap:hover .tip-box { display:block; }\n'
         '    body.light .tip-icon { color:rgba(0,0,0,.6) !important; border-color:rgba(0,0,0,.35) !important; background:rgba(0,0,0,.07) !important; }\n'
